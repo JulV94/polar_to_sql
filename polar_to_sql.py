@@ -1,4 +1,4 @@
-from utils import load_config
+from utils import load_config, pretty_print_json
 from accesslink import AccessLink
 import sqlite3
 import os
@@ -51,6 +51,7 @@ class PolarToSql:
 
         for url in resource_urls:
             physical_info = transaction.get_physical_info(url)
+            pretty_print_json(physical_info)
             db_physical_info.append([
                 physical_info.get("created"),
                 physical_info.get("height"),
@@ -79,6 +80,7 @@ class PolarToSql:
 
         for url in resource_urls:
             exercise_summary = transaction.get_exercise_summary(url)
+            pretty_print_json(exercise_summary)
             db_values_exercise.append([
                 exercise_summary.get("calories"),
                 exercise_summary.get("detailed-sport-info"),
@@ -97,6 +99,7 @@ class PolarToSql:
             ])
 
             heart_rate_zones = transaction.get_heart_rate_zones(url)
+            pretty_print_json(heart_rate_zones)
             db_values_heart_rate_zones.append([
                 heart_rate_zones.get("exercise_id"),
                 heart_rate_zones.get("in-zone"),
@@ -104,6 +107,9 @@ class PolarToSql:
                 heart_rate_zones.get("lower-limit"),
                 heart_rate_zones.get("upper-limit")
             ])
+
+            exercise_samples = transaction.get_samples(url)
+            pretty_print_json(exercise_samples)
 
         self.db_add_to_table("exercise_summaries", db_values_exercise)
         self.db_add_to_table("exercise_heart_rate_zones", db_values_heart_rate_zones)
@@ -119,20 +125,21 @@ class PolarToSql:
 
         resource_urls = transaction.list_activities()["activity-log"]
 
-        db_values = []
+        db_values_activity_summary = []
         for url in resource_urls:
-            act_sum = transaction.get_activity_summary(url)
-            db_values.append([act_sum.get("active-calories"),
-                              act_sum.get("active-steps"),
-                              act_sum.get("calories"),
-                              act_sum.get("created"),
-                              act_sum.get("date"),
-                              act_sum.get("duration"),
-                              act_sum.get("id"),
-                              act_sum.get("polar-user"),
-                              act_sum.get("transaction-id")])
+            activity_summary = transaction.get_activity_summary(url)
+            pretty_print_json(activity_summary)
+            db_values_activity_summary.append([activity_summary.get("active-calories"),
+                              activity_summary.get("active-steps"),
+                              activity_summary.get("calories"),
+                              activity_summary.get("created"),
+                              activity_summary.get("date"),
+                              activity_summary.get("duration"),
+                              activity_summary.get("id"),
+                              activity_summary.get("polar-user"),
+                              activity_summary.get("transaction-id")])
 
-        self.db_add_to_table("daily_activity_summaries", db_values)
+        self.db_add_to_table("daily_activity_summaries", db_values_activity_summary)
 
         transaction.commit()
 
