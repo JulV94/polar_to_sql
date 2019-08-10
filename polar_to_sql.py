@@ -1,4 +1,4 @@
-from utils import load_config, save_config, pretty_print_json
+from utils import load_config
 from accesslink import AccessLink
 import sqlite3
 import os
@@ -22,9 +22,6 @@ class PolarToSql:
 
         self.db_create_if_needed()
 
-    def get_user_information(self):
-        pretty_print_json(self.user_info)
-
     def save_new_data(self):
         available_data = self.accesslink.pull_notifications.list()
 
@@ -36,7 +33,7 @@ class PolarToSql:
             if item["data-type"] == "EXERCISE":
                 self.save_new_exercises()
             elif item["data-type"] == "ACTIVITY_SUMMARY":
-                self.save_new_daily_activities()
+                self.save_new_daily_activity_summaries()
             elif item["data-type"] == "PHYSICAL_INFORMATION":
                 self.save_new_physical_info()
 
@@ -45,16 +42,26 @@ class PolarToSql:
                                                                        access_token=self.config["access_token"])
 
         if not transaction:
+            print("No new physical info")
             return
 
-        print("Physical info have changed, maybe watch user changed")
         resource_urls = transaction.list_physical_infos()["physical-informations"]
+
+        db_physical_info = []
 
         for url in resource_urls:
             physical_info = transaction.get_physical_info(url)
+            db_physical_info.append([
+                physical_info.get("created"),
+                physical_info.get("height"),
+                physical_info.get("id"),
+                physical_info.get("polar-user"),
+                physical_info.get("transaction-id"),
+                physical_info.get("weight"),
+                physical_info.get("weight-source")
+            ])
 
-            print("Physical info:")
-            pretty_print_json(physical_info)
+        self.db_add_to_table("physical_information", db_physical_info)
 
         transaction.commit()
 
@@ -62,71 +69,107 @@ class PolarToSql:
         transaction = self.accesslink.training_data.create_transaction(user_id=self.config["user_id"],
                                                                        access_token=self.config["access_token"])
         if not transaction:
+            print("No new exercise")
             return
-
-        print("There is new exercises")
 
         resource_urls = transaction.list_exercises()["exercises"]
 
+        db_values_exercise = []
+        db_values_heart_rate_zones = []
+
         for url in resource_urls:
             exercise_summary = transaction.get_exercise_summary(url)
-            exercise_heart_rate_zones = transaction.get_heart_rate_zones(url)
+            db_values_exercise.append([
+                exercise_summary.get("calories"),
+                exercise_summary.get("detailed-sport-info"),
+                exercise_summary.get("device"),
+                exercise_summary.get("duration"),
+                exercise_summary.get("has-route"),
+                exercise_summary.get("heart-rate").get("average"),
+                exercise_summary.get("heart-rate").get("maximum"),
+                exercise_summary.get("id"),
+                exercise_summary.get("polar-user"),
+                exercise_summary.get("sport"),
+                exercise_summary.get("start-time"),
+                exercise_summary.get("training-load"),
+                exercise_summary.get("transaction-id"),
+                exercise_summary.get("upload-time")
+            ])
 
-            print("Exercise summary:")
-            pretty_print_json(exercise_summary)
-            print("Exercise heart rate zones:")
-            pretty_print_json(exercise_heart_rate_zones)
+            heart_rate_zones = transaction.get_heart_rate_zones(url)
+            db_values_heart_rate_zones.append([
+                heart_rate_zones.get("exercise_id"),
+                heart_rate_zones.get("in-zone"),
+                heart_rate_zones.get("index"),
+                heart_rate_zones.get("lower-limit"),
+                heart_rate_zones.get("upper-limit")
+            ])
+
+        self.db_add_to_table("exercise_summaries", db_values_exercise)
+        self.db_add_to_table("exercise_heart_rate_zones", db_values_heart_rate_zones)
 
         transaction.commit()
 
-    def save_new_daily_activities(self):
+    def save_new_daily_activity_summaries(self):
         transaction = self.accesslink.daily_activity.create_transaction(user_id=self.config["user_id"],
                                                                         access_token=self.config["access_token"])
         if not transaction:
+            print("No new daily activity")
             return
-
-        print("There is new exercises")
 
         resource_urls = transaction.list_activities()["activity-log"]
 
+        db_values = []
         for url in resource_urls:
-            activity_summary = transaction.get_activity_summary(url)
+            act_sum = transaction.get_activity_summary(url)
+            db_values.append([act_sum.get("active-calories"),
+                              act_sum.get("active-steps"),
+                              act_sum.get("calories"),
+                              act_sum.get("created"),
+                              act_sum.get("date"),
+                              act_sum.get("duration"),
+                              act_sum.get("id"),
+                              act_sum.get("polar-user"),
+                              act_sum.get("transaction-id")])
 
-            print("Activity summary:")
-            pretty_print_json(activity_summary)
+        self.db_add_to_table("daily_activity_summaries", db_values)
 
         transaction.commit()
 
     def db_create_if_needed(self):
         if os.path.exists(self.db_name):
-            print("Database already created")
+            print("Will append to existing database")
             return
-        db_connect = sqlite3.connect(self.db_name)
-        db_connect.execute("CREATE TABLE urbandictionary (SEARCH_WORD TEXT NOT NULL, SEARCH_STRING TEXT NOT NULL)")
-        db_connect.close()
+        with open("create_db.sql", "r") as f:
+            db_connect = sqlite3.connect(self.db_name)
+            cur = db_connect.cursor()
+            cur.executescript(f.read())
+            db_connect.close()
 
-    def db_print(self):
+    def db_get_table(self, table_name):
         db_connect = sqlite3.connect(self.db_name)
-        cur = db_connect.execute('select * from urbandictionary')
-        print([dict(search_word=row[0], search_string=row[1]) for row in cur.fetchall()])
+        cur = db_connect.execute('select * from %s' % table_name)
+        result = cur.fetchall()
         db_connect.close()
+        return result
 
-    def db_add_test(self, a, b):
+    def db_add_to_table(self, table_name, values):
+        val_placeholders = "?," * len(values[0])
         db_connect = sqlite3.connect('test.db')
-        db_connect.execute("INSERT INTO urbandictionary (SEARCH_WORD, SEARCH_STRING) \
-              VALUES (?,?)", [a, b])
+        db_connect.executemany("INSERT INTO %s VALUES (%s)" % (table_name, val_placeholders[:-1]), values)
         db_connect.commit()
         db_connect.close()
 
 
 if __name__ == "__main__":
     poltosql = PolarToSql("config.yml", "test.db")
-    poltosql.get_user_information()
     poltosql.save_new_data()
-    print("Transaction terminated")
-
-    poltosql.db_create_if_needed()
-    poltosql.db_print()
-    poltosql.db_add_test("a", "b")
-    poltosql.db_print()
-    print("End of db test")
+    # prints
+    print("Print physical_information table")
+    print(poltosql.db_get_table("physical_information"))
+    print("Print daily_activity_summaries table")
+    print(poltosql.db_get_table("daily_activity_summaries"))
+    print("Print exercise_summaries table")
+    print(poltosql.db_get_table("exercise_summaries"))
+    print("Print exercise_heart_rate_zones table")
+    print(poltosql.db_get_table("exercise_heart_rate_zones"))
