@@ -51,7 +51,7 @@ class PolarToSql:
 
         for url in resource_urls:
             physical_info = transaction.get_physical_info(url)
-            pretty_print_json(physical_info)
+            #pretty_print_json(physical_info)
             db_physical_info.append([
                 physical_info.get("created"),
                 physical_info.get("height"),
@@ -77,10 +77,11 @@ class PolarToSql:
 
         db_values_exercise = []
         db_values_heart_rate_zones = []
+        db_values_samples = []
 
         for url in resource_urls:
             exercise_summary = transaction.get_exercise_summary(url)
-            pretty_print_json(exercise_summary)
+            # pretty_print_json(exercise_summary)
             db_values_exercise.append([
                 exercise_summary.get("calories"),
                 exercise_summary.get("detailed-sport-info"),
@@ -99,20 +100,30 @@ class PolarToSql:
             ])
 
             heart_rate_zones = transaction.get_heart_rate_zones(url)
-            pretty_print_json(heart_rate_zones)
-            db_values_heart_rate_zones.append([
-                heart_rate_zones.get("exercise_id"),
-                heart_rate_zones.get("in-zone"),
-                heart_rate_zones.get("index"),
-                heart_rate_zones.get("lower-limit"),
-                heart_rate_zones.get("upper-limit")
-            ])
+            # pretty_print_json(heart_rate_zones)
+            for zone in heart_rate_zones.get("zone"):
+                db_values_heart_rate_zones.append([
+                    exercise_summary.get("id"),
+                    zone.get("in-zone"),
+                    zone.get("index"),
+                    zone.get("lower-limit"),
+                    zone.get("upper-limit")
+                ])
 
-            exercise_samples = transaction.get_samples(url)
-            pretty_print_json(exercise_samples)
+            exercise_samples_types = transaction.get_available_samples(url)
+            for samples_url in exercise_samples_types.get("samples"):
+                exercise_samples = transaction.get_samples(samples_url)
+                for data in exercise_samples["data"].split(','):
+                    db_values_samples.append([
+                        exercise_summary.get("id"),
+                        exercise_samples.get("recording-rate"),
+                        exercise_samples.get("sample-type"),
+                        float(data)
+                    ])
 
         self.db_add_to_table("exercise_summaries", db_values_exercise)
         self.db_add_to_table("exercise_heart_rate_zones", db_values_heart_rate_zones)
+        self.db_add_to_table("exercise_samples", db_values_samples)
 
         transaction.commit()
 
@@ -128,16 +139,18 @@ class PolarToSql:
         db_values_activity_summary = []
         for url in resource_urls:
             activity_summary = transaction.get_activity_summary(url)
-            pretty_print_json(activity_summary)
-            db_values_activity_summary.append([activity_summary.get("active-calories"),
-                              activity_summary.get("active-steps"),
-                              activity_summary.get("calories"),
-                              activity_summary.get("created"),
-                              activity_summary.get("date"),
-                              activity_summary.get("duration"),
-                              activity_summary.get("id"),
-                              activity_summary.get("polar-user"),
-                              activity_summary.get("transaction-id")])
+            #pretty_print_json(activity_summary)
+            db_values_activity_summary.append([
+                activity_summary.get("active-calories"),
+                activity_summary.get("active-steps"),
+                activity_summary.get("calories"),
+                activity_summary.get("created"),
+                activity_summary.get("date"),
+                activity_summary.get("duration"),
+                activity_summary.get("id"),
+                activity_summary.get("polar-user"),
+                activity_summary.get("transaction-id")
+            ])
 
         self.db_add_to_table("daily_activity_summaries", db_values_activity_summary)
 
@@ -180,3 +193,5 @@ if __name__ == "__main__":
     print(poltosql.db_get_table("exercise_summaries"))
     print("Print exercise_heart_rate_zones table")
     print(poltosql.db_get_table("exercise_heart_rate_zones"))
+    print("Print exercise_samples table")
+    print(poltosql.db_get_table("exercise_samples"))

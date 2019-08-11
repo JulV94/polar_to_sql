@@ -52,3 +52,12 @@ CREATE TABLE exercise_heart_rate_zones
     "lower-limit" INTEGER,
     "upper-limit" INTEGER
 );
+
+-- Exerxise samples table
+CREATE TABLE exercise_samples
+(
+    "exercise_id" INTEGER,
+    "recording-rate" INTEGER,
+    "sample-type" INTEGER,
+    "data" FLOAT
+);
