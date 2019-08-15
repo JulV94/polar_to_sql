@@ -115,6 +115,7 @@ class PolarToSql:
                 exercise_samples = transaction.get_samples(samples_url)
                 for data in exercise_samples["data"].split(','):
                     db_values_samples.append([
+                        None,  # Auto incremented field
                         exercise_summary.get("id"),
                         exercise_samples.get("recording-rate"),
                         exercise_samples.get("sample-type"),
@@ -174,9 +175,9 @@ class PolarToSql:
         return result
 
     def db_add_to_table(self, table_name, values):
-        val_placeholders = "?," * len(values[0])
-        db_connect = sqlite3.connect('test.db')
-        db_connect.executemany("INSERT INTO %s VALUES (%s)" % (table_name, val_placeholders[:-1]), values)
+        val_placeholders = ",".join("?" * len(values[0]))
+        db_connect = sqlite3.connect(self.db_name)
+        db_connect.executemany("INSERT INTO {} VALUES ({})".format(table_name, val_placeholders), values)
         db_connect.commit()
         db_connect.close()
 

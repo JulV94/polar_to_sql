@@ -56,6 +56,7 @@ CREATE TABLE exercise_heart_rate_zones
 -- Exerxise samples table
 CREATE TABLE exercise_samples
 (
+    "id" INTEGER PRIMARY KEY,
     "exercise_id" INTEGER,
     "recording-rate" INTEGER,
     "sample-type" INTEGER,
