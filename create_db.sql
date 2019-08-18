@@ -1,13 +1,28 @@
 -- Physical information table
 CREATE TABLE physical_information
 (
-    "created" DATETIME,
-    "height" FLOAT,
     "id" INTEGER,
-    "polar-user" VARCHAR(1023),
     "transaction-id" INTEGER,
+    "created" DATETIME,
+    "polar-user" VARCHAR(1023),
     "weight" FLOAT,
-    "weight-source" VARCHAR(255)
+    "height" FLOAT,
+    "weight-source" VARCHAR(255),
+    "maximum-heart-rate" INTEGER,
+    "resting-heart-rate" INTEGER,
+    "aerobic-threshold" INTEGER,
+    "anaerobic-threshold" INTEGER,
+    "vo2-max" INTEGER,
+    "birthdate" DATE,
+    "gender" VARCHAR(15),
+    "first-name" VARCHAR(255),
+    "last-name" VARCHAR(255),
+    "member-id" VARCHAR(255),
+    "polar-user-id" INTEGER,
+    "registration-date" DATETIME,
+    "extra-info-value" VARCHAR(1023),
+    "extra-info-index" VARCHAR(1023),
+    "extra-info-name" VARCHAR(1023)
 );
 
 -- Daily activity summaries table
